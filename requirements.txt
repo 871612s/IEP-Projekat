@@ -1,0 +1,13 @@
+Flask==3.0.3
+Flask-SQLAlchemy
+Flask-Migrate
+Flask-JWT-Extended
+SQLAlchemy
+gunicorn==22.0.0
+pymongo==4.8.0
+redis==5.0.8
+PyJWT==2.9.0
+pydantic
+email-validator
+bcrypt
+web3

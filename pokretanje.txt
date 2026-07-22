@@ -1,0 +1,401 @@
+docker build -t registracija ./registracija
+docker save -o registracija.tar registracija:latest
+docker cp registracija.tar desktop-control-plane:/registracija.tar
+docker exec desktop-control-plane ctr -n k8s.io images import /registracija.tar
+Remove-Item registracija.tar
+
+docker build -t zaposleni ./zaposleni      
+docker save -o zaposleni.tar zaposleni:latest      
+docker cp zaposleni.tar desktop-control-plane:/zaposleni.tar      
+docker exec desktop-control-plane ctr -n k8s.io images import /zaposleni.tar   
+Remove-Item zaposleni.tar  
+
+docker build -t direktor ./direktor                                  
+docker save -o direktor.tar direktor:latest        
+docker cp direktor.tar desktop-control-plane:/direktor.tar        
+docker exec desktop-control-plane ctr -n k8s.io images import /direktor.tar    
+Remove-Item direktor.tar    
+
+kubectl apply -f investfund-k8s.yaml
+
+kubectl get pods 
+
+u posebni terminalim
+
+kubectl port-forward svc/auth-service 5000:5000
+
+kubectl port-forward svc/employee-service 5001:5000
+
+kubectl port-forward svc/director-service 5002:5000
+
+while ($true) {
+     kubectl port-forward svc/ganache-service 8545:8545
+     Write-Host "port-forward pukao, restartujem za 2s..."
+     Start-Sleep -Seconds 2
+}
+
+cd "F:\iep projekat\iep_grader"
+
+python -m venv .venv
+
+mozda:
+.venv\Scripts\Activate.ps1
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.venv\Scripts\Activate.ps1
+
+mora:
+pip install -r requirements-pytest.txt
+
+pytest --version
+
+za testiranje:
+kubectl exec -it deploy/mongo -- mongosh -u root -p rootpassword --authenticationDatabase admin --eval "db.getSiblingDB('investfund').dropDatabase()"
+kubectl exec -it deploy/redis -- redis-cli FLUSHALL
+kubectl exec -it deploy/postgres -- psql -U fonduser -d investfund_users -c "DELETE FROM users WHERE email = 'john@gmail.com';"
+pytest -q --type all --authentication-url http://127.0.0.1:5000 --jwt-secret nekojakojwt123 --roles-field role --employee-role employee --director-role director --with-authentication --employee-url http://127.0.0.1:5001 --director-url http://127.0.0.1:5002 --with-blockchain --provider-url http://127.0.0.1:8545 --grade-report-file grade_report.json > report.txt
+ako treba:
+pip install setuptools
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from pymongo import MongoClient
+from os import environ
+from flask import Flask
+from config import Configuration
+from flask_jwt_extended import JWTManager
+import redis
+
+redis_client = redis.Redis(
+    host=environ["REDIS_HOST"],
+    port=6379,
+    decode_responses=True
+)
+
+client = MongoClient(
+    host=environ["MONGO_HOST"],
+    port=27017,
+    username=environ["MONGO_USER"],
+    password=environ["MONGO_PASS"],
+    authSource="admin"
+)
+
+database = client[environ["MONGO_DB"]]
+assets = database["assets"]
+
+application = Flask(__name__)
+application.config.from_object(Configuration)
+
+jwt = JWTManager()
+jwt.init_app(application)
+
+import routes
+
+if __name__ == "__main__":
+    application.run()
+
+from os import environ
+
+class Configuration:
+    pass
+
+from flask import request, jsonify
+from bson import ObjectId
+from app import application, assets, redis_client
+from roles import Roles
+from datetime import datetime
+
+
+
+def parse_object_id(value):
+    try:
+        return ObjectId(value)
+    except:
+        return None
+    
+def format_date(dt):
+    if dt is None:
+        return None
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
+    
+@application.route("/search",methods=["POST"])
+def search():
+    data = request.get_json() or {}
+    min_price = data.get("min_price")
+    max_price = data.get("max_price")
+    
+    query = {}
+    
+    if min_price is not None or max_price is not None:
+        query["buying_price"] = {}
+
+    if min_price is not None:
+        query["buying_price"]["$gte"] = min_price
+
+    if max_price is not None:
+        query["buying_price"]["$lte"] = max_price
+    
+    
+    documents = list(assets.find(query))
+    
+    result = []
+
+    for asset in documents:
+
+        asset["id"] = str(asset["_id"])
+        del asset["_id"]
+
+        asset["buying_date"] = format_date(asset.get("buying_date"))
+
+        if asset.get("selling_price") is not None and asset.get("selling_date") is not None:
+            asset["selling_date"] = format_date(asset["selling_date"])
+        else:
+            asset.pop("selling_price", None)
+            asset.pop("selling_date", None)
+
+        result.append(asset)
+
+    return jsonify({"assets":result})
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: modifikacija-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: modifikacija-service
+  template:
+    metadata:
+      labels:
+        app: modifikacija-service
+    spec:
+      initContainers:
+        - name: wait-for-deps
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z mongo-service 27017
+              do
+                echo waiting...
+                sleep 2
+              done
+
+      containers:
+        - name: modifikacija-service
+          image: modifikacija:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: modifikacija-service
+spec:
+  type: NodePort
+  selector:
+    app: modifikacija-service
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: 30005
